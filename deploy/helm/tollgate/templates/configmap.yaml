@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "tollgate.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "tollgate.labels" . | nindent 4 }}
+data:
+  ALERT_WEBHOOK_URL: {{ .Values.config.alertWebhookUrl | quote }}
