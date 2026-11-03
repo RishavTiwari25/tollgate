@@ -126,7 +126,7 @@ func newHarness(t *testing.T) *harness {
 	ipPrints := fingerprint.New(30, nil)
 
 	auth, err := authjwt.New(map[string]authjwt.User{
-		adminEmail:              {Password: adminPass, Role: "admin"},
+		adminEmail:            {Password: adminPass, Role: "admin"},
 		"viewer@tollgate.dev": {Password: viewerPass, Role: "viewer"},
 	}, jwtSecret, time.Hour, nil)
 	if err != nil {
