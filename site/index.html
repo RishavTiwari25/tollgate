@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tollgate · AI-aware rate limiting for any site</title>
+<meta name="description" content="A drop-in rate-limiting layer with monthly plans and Stripe billing automation. Attach it to any site with one command.">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b1120; --bg2:#0f172a; --panel:#111a2e; --panel2:#0d1526; --line:#1e293b;
+    --text:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+    --sky:#34d399; --indigo:#818cf8; --teal:#38bdf8; --rose:#f43f5e; --amber:#fbbf24;
+    --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --display:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  :root[data-theme="light"]{
+    --bg:#f2f5fa; --bg2:#e9eef6; --panel:#ffffff; --panel2:#f6f8fc; --line:#dbe3ee;
+    --text:#1c2940; --dim:#5d6b84; --faint:#8b98ae;
+    --sky:#059669; --indigo:#6366f1; --teal:#0284c7; --rose:#e11d48; --amber:#d97706;
+  }
+  :root[data-theme="light"] .navbar{background:rgba(242,245,250,.85)}
+  :root[data-theme="light"] .btn-pri{color:#ffffff}
+  :root[data-theme="light"] .term,:root[data-theme="light"] .code,:root[data-theme="light"] .oneliner{background:#0f172a;border-color:#243349}
+  :root[data-theme="light"] .term pre,:root[data-theme="light"] .code pre,:root[data-theme="light"] .oneliner pre,
+  :root[data-theme="light"] .term .w{color:#e2e8f0}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font:16px/1.65 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+  .themebtn{width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--text);cursor:pointer;font-size:14px}
+  a{color:var(--sky);text-decoration:none}
+  .wrap{max-width:1020px;margin:0 auto;padding:0 24px}
+
+  .navbar{position:sticky;top:0;z-index:50;background:rgba(11,17,32,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  nav{display:flex;align-items:center;justify-content:space-between;height:60px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:700;letter-spacing:.06em;color:var(--text);font-size:15px}
+  .brand img{width:30px;height:30px;border-radius:7px}
+  .brand .p{color:var(--sky)}
+  .nav-links{display:flex;gap:24px;font-size:14px}
+  .nav-links a{color:var(--dim)} .nav-links a:hover{color:var(--text)}
+
+  .hero{padding:76px 0 56px;text-align:center;position:relative}
+  .hero::before{content:"";position:absolute;inset:-60px 0 0;background:radial-gradient(640px 300px at 50% 0%,rgba(148,163,184,.07),transparent 70%);pointer-events:none}
+  .pill{display:inline-block;font:12px/1 var(--mono);color:var(--teal);border:1px solid rgba(45,212,191,.3);background:rgba(45,212,191,.06);padding:7px 14px;border-radius:99px;letter-spacing:.06em}
+  h1{font-family:var(--display);font-size:clamp(32px,5vw,54px);line-height:1.12;font-weight:700;margin:22px auto 16px;max-width:780px;letter-spacing:-.015em}
+  h1 .hl{color:var(--sky)}
+  .sub{color:var(--dim);max-width:620px;margin:0 auto 30px;font-size:17px}
+  .cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-block;padding:12px 24px;border-radius:10px;font-weight:600;font-size:15px;transition:.15s}
+  .btn-pri{background:var(--sky);color:#07101f}
+  .btn-pri:hover{filter:brightness(1.1)}
+  .btn-sec{border:1px solid var(--line);color:var(--text);background:var(--panel)}
+  .btn-sec:hover{border-color:var(--faint)}
+  .oneliner{max-width:640px;margin:36px auto 0;background:#0a0f1d;border:1px solid var(--line);border-radius:12px;position:relative;text-align:left}
+  .oneliner pre{padding:16px 18px;font:13.5px/1.6 var(--mono);color:var(--text);overflow-x:auto}
+  .oneliner .lbl{position:absolute;top:-10px;left:14px;font:11px var(--mono);color:var(--faint);background:var(--bg);padding:0 8px;letter-spacing:.08em}
+
+  section{padding:72px 0}
+  .kicker{font:12px/1 var(--mono);color:var(--sky);letter-spacing:.14em;text-transform:uppercase;margin-bottom:10px}
+  h2{font-family:var(--display);font-size:clamp(24px,3.2vw,34px);font-weight:700;margin-bottom:12px;letter-spacing:-.01em}
+  .lede{color:var(--dim);max-width:640px;margin-bottom:34px}
+  .alt{background:var(--bg2);border-block:1px solid var(--line)}
+
+  /* ---------- playground ---------- */
+  .play{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;display:grid;grid-template-columns:1fr 1fr;gap:26px}
+  @media(max-width:760px){.play{grid-template-columns:1fr}}
+  .meters .meter{margin-bottom:22px}
+  .meter .row{display:flex;justify-content:space-between;font:12.5px var(--mono);color:var(--dim);margin-bottom:7px}
+  .meter .row b{color:var(--text);font-weight:600}
+  .bar{height:14px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .bar i{display:block;height:100%;width:100%;border-radius:7px;transform-origin:left;transition:transform .25s ease}
+  #burstFill{background:var(--sky)}
+  #monthFill{background:var(--teal)}
+  .bar i.warn{background:var(--amber)} .bar i.out{background:var(--rose)}
+  .play-actions{display:flex;flex-direction:column;gap:12px;justify-content:center}
+  .pbtn{font:600 14px/1 inherit;padding:13px 18px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--text);cursor:pointer;text-align:left;transition:.15s}
+  .pbtn:hover{border-color:var(--faint)}
+  .pbtn small{display:block;font-weight:400;color:var(--faint);margin-top:3px;font-size:12px}
+  .pbtn.ghost{background:transparent;color:var(--dim);font-weight:500}
+  #verdict{font:13px/1.6 var(--mono);border-radius:10px;padding:12px 14px;border:1px solid var(--line);background:var(--panel2);color:var(--dim);min-height:66px}
+  #verdict.ok{border-color:rgba(45,212,191,.4);color:var(--teal)}
+  #verdict.no{border-color:rgba(244,63,94,.4);color:var(--rose)}
+
+  /* ---------- tabs / steps ---------- */
+  .tabs{display:flex;gap:6px}
+  .tab{font:600 14px/1 inherit;padding:11px 18px;border:1px solid var(--line);border-bottom:none;border-radius:10px 10px 0 0;background:transparent;color:var(--dim);cursor:pointer}
+  .tab.on{background:var(--panel);color:var(--text)}
+  .tabpanel{display:none;background:var(--panel);border:1px solid var(--line);border-radius:0 12px 12px 12px;padding:6px 0}
+  .tabpanel.on{display:block}
+  .step{display:grid;grid-template-columns:50px 1fr;gap:0 12px;padding:20px 24px;border-bottom:1px solid var(--line)}
+  .step:last-child{border-bottom:none}
+  .n{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 14px var(--mono);color:var(--sky);border:1px solid rgba(56,189,248,.35);background:rgba(56,189,248,.07)}
+  .step h3{font-size:16px;margin:4px 0 6px}
+  .step p{color:var(--dim);font-size:14px;margin-bottom:10px}
+  .code{position:relative;background:#0a0f1d;border:1px solid var(--line);border-radius:10px}
+  .code pre{padding:13px 15px;font:13px/1.65 var(--mono);color:var(--text);overflow-x:auto}
+  .copy{position:absolute;top:8px;right:8px;font:11px var(--mono);color:var(--faint);background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+  .copy:hover{color:var(--text)}
+
+  .flow{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;overflow-x:auto;margin-bottom:18px}
+  .flow pre{font:12.5px/1.65 var(--mono);color:var(--dim);min-width:540px}
+  .g{color:var(--teal)} .r{color:var(--rose)} .b{color:var(--sky)} .y{color:var(--amber)} .w{color:var(--text)} .c{color:var(--faint)}
+
+  /* ---------- plans ---------- */
+  .plans{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
+  .plan{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px;display:flex;flex-direction:column}
+  .plan.featured{border-color:rgba(56,189,248,.45)}
+  .plan .name{font:700 13px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .plan.featured .name{color:var(--sky)}
+  .plan .amount{font-family:var(--display);font-size:40px;font-weight:700;margin:12px 0 2px}
+  .plan .amount small{font-size:14px;color:var(--faint);font-weight:400}
+  .plan .quota{font:13px var(--mono);color:var(--teal);margin-bottom:16px}
+  .plan ul{list-style:none;color:var(--dim);font-size:14px;flex:1}
+  .plan li{padding:5px 0 5px 22px;position:relative}
+  .plan li::before{content:"✓";position:absolute;left:0;color:var(--teal);font-weight:700}
+  .plan .btn{margin-top:20px;text-align:center}
+  .fineprint{color:var(--faint);font-size:13px;margin-top:18px}
+  .fineprint code{font-family:var(--mono);color:var(--dim)}
+
+  .feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px}
+  .card h3{font-size:16px;margin-bottom:7px;display:flex;align-items:center;gap:10px}
+  .card p{color:var(--dim);font-size:14px}
+  .ic{width:8px;height:8px;border-radius:2px;background:var(--sky);flex:none}
+
+  footer{border-top:1px solid var(--line);padding:32px 0;color:var(--faint);font-size:14px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  @media(max-width:640px){.nav-links a:not(:last-child){display:none}.step{grid-template-columns:42px 1fr;padding:16px 14px}}
+  .pipe3d{height:200px;border-radius:16px;overflow:hidden;background:var(--panel);border:1px solid var(--line)}
+  .stagerow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+  @media(max-width:760px){.stagerow{grid-template-columns:1fr 1fr}}
+  .stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.5;color:var(--dim)}
+  .stage b{display:block;font-family:var(--display);color:var(--text);font-size:14px;margin-bottom:6px;letter-spacing:.01em}
+  .pipehint{display:flex;justify-content:space-between;align-items:center;max-width:100%;font:11px var(--mono);color:var(--faint);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;padding:0 6px}
+  .pipehint span:nth-child(2){color:var(--sky);font-size:14px}
+  .billflow{display:flex;flex-direction:column;gap:6px;max-width:560px}
+  .bstep{display:flex;gap:14px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 18px}
+  .bstep .bn{width:30px;height:30px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 14px var(--mono);color:var(--sky);border:1px solid rgba(56,189,248,.4);background:rgba(56,189,248,.08)}
+  .bstep b{font-family:var(--display);font-size:14px}
+  .bstep small{display:block;color:var(--dim);font-size:12.5px;margin-top:2px}
+  .barrow{color:var(--faint);text-align:center;font-size:18px;line-height:1}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:80;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 20px;font:13px/1.5 var(--mono);color:var(--text);max-width:min(520px,92vw);box-shadow:0 12px 40px rgba(0,0,0,.25);display:none}
+  #toast.show{display:block}
+  #toast a{color:var(--sky)}
+</style>
+</head>
+<body>
+
+<div class="navbar"><div class="wrap"><nav>
+  <div class="brand"><img src="logo.svg" alt="Tollgate logo">TOLL<span class="p">GATE</span></div>
+  <div class="nav-links">
+    <a href="#play">Playground</a><a href="#attach">Attach</a><a href="#how">How it works</a><a href="#plans">Plans</a>
+    <a href="/dashboard">Dashboard</a>
+    <a href="https://github.com/RishavTiwari25/tollgate">GitHub →</a>
+    <button class="themebtn" id="themeBtn" title="toggle theme">◐</button>
+  </div>
+</nav></div></div>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="pill">Written in Go · zero dependencies · Kubernetes operator · Stripe-automated plans</span>
+    <h1>Rate limiting that knows<br>what <span class="hl">AI actually costs</span></h1>
+    <p class="sub">A ping costs microseconds. An AI call costs real GPU money. Tollgate prices every request by cost class, meters it against a monthly plan, and flips tiers automatically when customers pay. Put it in front of any site with one binary.</p>
+    <div class="cta">
+      <a class="btn btn-pri" href="/dashboard">Open the live dashboard</a>
+      <a class="btn btn-sec" href="#attach">Attach it to your site</a>
+    </div>
+    <div class="oneliner">
+      <span class="lbl">THE WHOLE INSTALL</span>
+      <pre>go install github.com/RishavTiwari25/tollgate/cmd/tollgate@latest
+tollgate --upstream http://localhost:8080</pre>
+    </div>
+  </div>
+</header>
+
+<section id="play" class="alt">
+  <div class="wrap">
+    <div class="kicker">Playground</div>
+    <h2>Feel the limiter work</h2>
+    <p class="lede">This is the real algorithm, running in your browser: a burst bucket (protects your servers, refills every second) and a monthly plan meter (protects your wallet, resets on the 1st). Send requests and watch both react.</p>
+    <div class="play">
+      <div class="meters">
+        <div class="meter">
+          <div class="row"><span>BURST BUCKET <span class="c">(refills 1 token/sec)</span></span><b id="burstNum">10 / 10</b></div>
+          <div class="bar"><i id="burstFill"></i></div>
+        </div>
+        <div class="meter">
+          <div class="row"><span>MONTHLY PLAN <span class="c">(demo plan: 25 units)</span></span><b id="monthNum">25 / 25</b></div>
+          <div class="bar"><i id="monthFill"></i></div>
+        </div>
+        <div id="verdict">Click a button to send your first request.</div>
+      </div>
+      <div class="play-actions">
+        <button class="pbtn" id="sendLight">Send a light request · costs 1<small>a ping, a metadata read</small></button>
+        <button class="pbtn" id="sendHeavy">Send a heavy AI request · costs 5<small>an NSFW scan, a GenAI call</small></button>
+        <button class="pbtn ghost" id="newMonth">It's the 1st of the month (reset plan)</button>
+        <button class="pbtn ghost" id="resetAll">Reset playground</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="attach">
+  <div class="wrap">
+    <div class="kicker">Attach</div>
+    <h2>Attach to any site in a few steps</h2>
+    <p class="lede">Run the proxy in front of anything (Python, PHP, Rails, even a static site; it never knows the layer is there), or run it on Kubernetes and rate-limit every service behind your ingress.</p>
+    <div class="tabs">
+      <button class="tab on" data-t="proxy">Any site (proxy)</button>
+      <button class="tab" data-t="k8s">Kubernetes (operator)</button>
+    </div>
+    <div class="tabpanel on" id="p-proxy">
+      <div class="step"><div class="n">1</div><div>
+        <h3>One command. Protected.</h3>
+        <p>One static Go binary, no config. Point it at your site and send traffic to port 3000. Every visitor gets 60 requests/minute out of the box.</p>
+        <div class="code"><pre>go install github.com/RishavTiwari25/tollgate/cmd/tollgate@latest
+tollgate --upstream http://localhost:8080</pre><button class="copy">copy</button></div>
+      </div></div>
+      <div class="step"><div class="n">2</div><div>
+        <h3>Price your AI routes with flags</h3>
+        <p>Mark expensive endpoints heavy (5 tokens each) and tune the per-visitor budget.</p>
+        <div class="code"><pre>tollgate --upstream http://localhost:8080 \
+  --rpm 120 --heavy /api/ai-scan,/api/generate</pre><button class="copy">copy</button></div>
+      </div></div>
+      <div class="step"><div class="n">3</div><div>
+        <h3>Go multi-tenant when you're ready</h3>
+        <p>A config file adds tiers, API keys, monthly quotas, and per-customer budgets. Blocked requests get a clean 429 and never reach your servers.</p>
+        <div class="code"><pre>cp tollgate.config.example.json tollgate.config.json
+tollgate --config tollgate.config.json</pre><button class="copy">copy</button></div>
+      </div></div>
+    </div>
+    <div class="tabpanel" id="p-k8s">
+      <div class="step"><div class="n">1</div><div>
+        <h3>Spin up the whole story on kind</h3>
+        <p>Three-node cluster, CRDs, the operator, the gateway with Redis, live traffic, and proof the limit holds.</p>
+        <div class="code"><pre>git clone https://github.com/RishavTiwari25/tollgate && cd Tollgate
+make kind-demo</pre><button class="copy">copy</button></div>
+      </div></div>
+      <div class="step"><div class="n">2</div><div>
+        <h3>Rate limits are Kubernetes objects</h3>
+        <p>Change a limit with a reviewed pull request or <code>kubectl patch</code>. It takes effect in under a second with zero pod restarts.</p>
+        <div class="code"><pre>apiVersion: tollgate.dev/v1alpha1
+kind: RateLimitPolicy
+metadata: {name: api-limits}
+spec:
+  tiers:
+    pro: {capacity: 50, refillPerSecond: 5, monthlyQuota: 50000}
+  routes:
+    - {path: /v1/ai/generate, costClass: heavy}   # 5 tokens, not 1</pre><button class="copy">copy</button></div>
+      </div></div>
+      <div class="step"><div class="n">3</div><div>
+        <h3>Protect services it never sees</h3>
+        <p><code>/v1/authz</code> speaks Envoy ext_authz, NGINX auth_request and Traefik ForwardAuth, so every workload behind your gateway is limited with no sidecar and no code change. <code>kubectl get</code> shows live allowed / blocked counts.</p>
+        <div class="code"><pre>kubectl get ratelimitpolicies   # NAME  TIERS  ROUTES  ALLOWED  BLOCKED  READY
+kubectl get tenants             # NAME  TENANT  TIER  ALLOWED  BLOCKED  LANE</pre><button class="copy">copy</button></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<section id="how" class="alt">
+  <div class="wrap">
+    <div class="kicker">How it works</div>
+    <h2>Every request passes five quick checks</h2>
+    <p class="lede">A request only gets through if every check says yes. If one says no, it's stopped with a plain reason — and every decision is written down.</p>
+    <!-- 3D pipeline: a request flows left to right through the five checks -->
+    <div class="pipehint"><span>request comes in</span><span>→</span><span>answer goes out</span></div>
+    <div class="pipe3d" id="pipe3d"></div>
+    <div class="stagerow">
+      <div class="stage"><b>1 · Who</b>Which customer is this?</div>
+      <div class="stage"><b>2 · How costly</b>A cheap read, normal work, or an expensive AI call?</div>
+      <div class="stage"><b>3 · Monthly plan</b>Do they have requests left this month?</div>
+      <div class="stage"><b>4 · Speed</b>Are they sending too fast right now?</div>
+      <div class="stage"><b>5 · Answer</b>Let it through, or stop it with a clear reason.</div>
+    </div>
+
+    <h2 style="margin-top:56px">Upgrades happen on their own</h2>
+    <p class="lede">When a customer pays, their new plan takes effect immediately — no one has to do anything. If they cancel or a payment fails, they move back down the same way.</p>
+    <div class="billflow">
+      <div class="bstep"><span class="bn">1</span><div><b>The customer pays</b><small>through Stripe's secure page — we never see card details</small></div></div>
+      <div class="barrow">↓</div>
+      <div class="bstep"><span class="bn">2</span><div><b>Stripe confirms the payment to us</b><small>with a signed message we verify before trusting it</small></div></div>
+      <div class="barrow">↓</div>
+      <div class="bstep"><span class="bn">3</span><div><b>The new plan is live instantly</b><small>the customer's very next request uses their upgraded limits</small></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="plans">
+  <div class="wrap">
+    <div class="kicker">Plans</div>
+    <h2>Flat prices with hard monthly caps</h2>
+    <p class="lede">The Zapier model: each tier buys a monthly allowance of units. Light requests cost 1 unit, heavy AI requests cost 5. At the cap, requests pause with an upgrade prompt, so a runaway script can never generate a bill you didn't expect.</p>
+    <div class="plans">
+      <div class="plan">
+        <span class="name">Free</span>
+        <div class="amount">$0<small>/mo</small></div>
+        <div class="quota">1,000 units / month</div>
+        <ul><li>200 heavy AI calls</li><li>Burst: 10 tokens, 1/sec refill</li><li>Full rate-limit headers</li><li>Audit log access</li></ul>
+        <a class="btn btn-sec" href="https://github.com/RishavTiwari25/tollgate">Start free</a>
+      </div>
+      <div class="plan featured">
+        <span class="name">Pro</span>
+        <div class="amount">$19<small>/mo</small></div>
+        <div class="quota">50,000 units / month</div>
+        <ul><li>10,000 heavy AI calls</li><li>Burst: 50 tokens, 5/sec refill</li><li>Stripe checkout + auto-upgrade</li><li>Webhook tier automation</li></ul>
+        <a class="btn btn-pri" href="#" onclick="upgradeStripe(event)">Upgrade via Stripe</a>
+      </div>
+      <div class="plan">
+        <span class="name">Enterprise</span>
+        <div class="amount">$199<small>/mo</small></div>
+        <div class="quota">1,000,000 units / month</div>
+        <ul><li>200,000 heavy AI calls</li><li>Burst: 300 tokens, 30/sec refill</li><li>Redis-backed multi-server mode</li><li>Custom cost classes</li></ul>
+        <a class="btn btn-sec" href="https://github.com/RishavTiwari25/tollgate#billing">Talk to us</a>
+      </div>
+    </div>
+    <p class="fineprint">Example plans for the live demo. Payments run through Stripe, and an upgrade takes effect on the customer's very next request.</p>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <div class="kicker">Under the hood</div>
+    <h2>Small, honest engineering</h2>
+    <p class="lede" style="margin-bottom:26px">A learning-grade codebase you can actually read: every file is commented like a lesson.</p>
+    <div class="feat">
+      <div class="card"><h3><span class="ic"></span>6 limiter algorithms</h3><p>Fixed window, sliding log, sliding counter, token bucket, leaky bucket and monthly quota, plus Redis versions where an atomic Lua script reads Redis's clock so every replica shares one budget.</p></div>
+      <div class="card"><h3><span class="ic"></span>Billing you can read</h3><p>Stripe integration with zero SDKs: raw HTTPS, form encoding, and one HMAC for webhook signatures. Swap in the official SDK later; nothing structural changes.</p></div>
+      <div class="card"><h3><span class="ic"></span>Two-meter design</h3><p>The monthly meter protects the customer's wallet; the burst bucket protects your servers. A blocked plan never drains burst tokens.</p></div>
+      <div class="card"><h3><span class="ic"></span>Tenant isolation</h3><p>Buckets are keyed tenant:tier:route. One customer burning their budget mathematically cannot touch anyone else's.</p></div>
+      <div class="card"><h3><span class="ic"></span>Autopilot with an AI voice</h3><p>Quota alerts at 80%, upgrade nudges at the cap, and auto-cooldown bans for retry-storms. Each action ships with an LLM-written incident note based on real audit facts, falling back to templates when no key is set.</p></div>
+      <div class="card"><h3><span class="ic"></span>Deterministic tests</h3><p>Injectable clocks everywhere, so tests fast-forward to next month instead of sleeping. 400+ Go tests cover allow, block, reset, isolation, billing and the autopilot, and CI runs a real kind cluster end to end.</p></div>
+      <div class="card"><h3><span class="ic"></span>Kubernetes, hand-written</h3><p>An operator with its own API client: watch loop with 410 recovery, leader election on Leases, finalizers and a Prometheus exporter, all on the Go standard library.</p></div>
+      <div class="card"><h3><span class="ic"></span>XDP fast path (eBPF)</h3><p>An optional kernel layer: banned clients and per-IP floods are dropped in the network driver before the kernel allocates anything, and the gateway's autopilot bans are synced into a BPF map every second. <a href="/live">Watch it run on Azure &rarr;</a></p></div>
+      <div class="card"><h3><span class="ic"></span>Fails loudly</h3><p>Unknown tiers, plans or cost classes are rejected at config time. Unsigned webhooks are rejected before a byte is trusted.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <span>TOLL<span style="color:var(--sky)">GATE</span> · deployed &amp; maintained by <a href="https://github.com/RishavTiwari25">Rishav Tiwari</a></span>
+    <span><a href="https://github.com/RishavTiwari25/tollgate">Source & docs on GitHub</a></span>
+  </footer>
+</div>
+
+<script>
+  // ---------- theme (shared preference with the dashboard) ----------
+  const root = document.documentElement;
+  root.dataset.theme = localStorage.getItem("lp_theme") ?? "dark";
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("lp_theme", root.dataset.theme);
+  });
+
+  // ---------- tabs + copy buttons ----------
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("on"));
+    document.querySelectorAll(".tabpanel").forEach(x => x.classList.remove("on"));
+    t.classList.add("on");
+    document.getElementById("p-" + t.dataset.t).classList.add("on");
+  }));
+  document.querySelectorAll(".copy").forEach(b => b.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(b.previousElementSibling.textContent);
+    b.textContent = "copied!"; setTimeout(() => b.textContent = "copy", 1200);
+  }));
+
+  // ---------- playground: the REAL algorithms, miniature numbers ----------
+  // Token bucket: identical math to src/algorithms/tokenBucketLimiter.js.
+  // Monthly meter: identical idea to src/algorithms/monthlyQuotaLimiter.js,
+  // except "a month" is whenever you press the reset button.
+  const CAPACITY = 10, REFILL_PER_MS = 1 / 1000, QUOTA = 25;
+  let tokens = CAPACITY, lastRefill = performance.now(), used = 0;
+
+  const $ = id => document.getElementById(id);
+
+  function refill(now) { // coins trickle back over time, capped at the jar size
+    tokens = Math.min(tokens + (now - lastRefill) * REFILL_PER_MS, CAPACITY);
+    lastRefill = now;
+  }
+
+  function paint() {
+    refill(performance.now());
+    $("burstNum").textContent = `${Math.floor(tokens)} / ${CAPACITY}`;
+    $("monthNum").textContent = `${QUOTA - used} / ${QUOTA}`;
+    const bp = tokens / CAPACITY * 100, mp = (QUOTA - used) / QUOTA * 100;
+    const bf = $("burstFill"), mf = $("monthFill");
+    bf.style.transform = `scaleX(${bp / 100})`; mf.style.transform = `scaleX(${mp / 100})`;
+    bf.className = bp === 0 ? "out" : bp < 35 ? "warn" : "";
+    mf.className = mp === 0 ? "out" : mp < 35 ? "warn" : "";
+    requestAnimationFrame(paint);
+  }
+  requestAnimationFrame(paint);
+
+  function send(cost, label) {
+    refill(performance.now());
+    const v = $("verdict");
+    // Question 1: does the PLAN have units left this month?
+    if (used + cost > QUOTA) {
+      v.className = "no";
+      v.textContent = `429 monthly_quota_exhausted · your plan's ${QUOTA} units are spent. Upgrade, or press "the 1st of the month". Note: burst tokens were NOT touched.`;
+      return;
+    }
+    // Question 2: are you going too fast RIGHT NOW?
+    if (tokens < cost) {
+      const wait = Math.ceil((cost - tokens) / REFILL_PER_MS / 1000);
+      v.className = "no";
+      v.textContent = `429 rate_limited · this ${label} request costs ${cost} but the bucket has ${Math.floor(tokens)}. Retry-After: ${wait}s (watch it refill).`;
+      return;
+    }
+    tokens -= cost; used += cost; // both meters pay
+    v.className = "ok";
+    v.textContent = `200 OK · ${label} request allowed. Spent ${cost} burst token${cost > 1 ? "s" : ""} + ${cost} monthly unit${cost > 1 ? "s" : ""}. X-Monthly-Remaining: ${QUOTA - used}.`;
+  }
+
+  $("sendLight").onclick = () => send(1, "light");
+  $("sendHeavy").onclick = () => send(5, "heavy");
+  $("newMonth").onclick = () => { used = 0; $("verdict").className = ""; $("verdict").textContent = "Plan meter reset. In production this happens by itself at 00:00 UTC on the 1st: the month id changes, the meter starts fresh."; };
+  $("resetAll").onclick = () => { tokens = CAPACITY; used = 0; lastRefill = performance.now(); $("verdict").className = ""; $("verdict").textContent = "Playground reset."; };
+</script>
+<div id="toast"></div>
+
+<script>
+  window.TG_GATEWAY = "https://limitplane-gateway.onrender.com";
+  // wake the free-tier gateway now, so the dashboard is warm by the time someone opens it
+  fetch(TG_GATEWAY + "/healthz", { mode: "no-cors" }).catch(() => {});
+  function toast(html, ms){ const t = document.getElementById("toast"); t.innerHTML = html; t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove("show"), ms || 6000); }
+  async function upgradeStripe(e){
+    e.preventDefault();
+    toast("Starting checkout…", 3000);
+    try{
+      const r = await fetch(TG_GATEWAY + "/v1/billing/checkout", { method:"POST", headers:{ "content-type":"application/json", "x-api-key":"lp_demo_a91f3c" }, body: JSON.stringify({ plan:"pro" }) });
+      const d = await r.json();
+      if (d.url){ location.href = d.url; return; }              // real Stripe
+      toast("Stripe checkout is wired and ready — it goes live the moment a <b>STRIPE_SECRET_KEY</b> + price IDs are set on the gateway. Try the flow on the <a href='/dashboard'>dashboard</a> (demo upgrade).", 9000);
+    }catch{ toast("Could not reach the billing gateway (it may be waking from sleep — retry in ~30s).", 6000); }
+  }
+</script>
+
+<script type="module">
+  import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+  const el = document.getElementById("pipe3d");
+  if (el){
+    const light = () => document.documentElement.dataset.theme === "light";
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+    renderer.setSize(el.clientWidth, el.clientHeight);
+    el.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(46, el.clientWidth/el.clientHeight, .1, 100);
+    cam.position.set(0, 1.6, 15);
+    cam.lookAt(0, 0, 0);
+
+    const SPAN = 18, X0 = -SPAN/2, GAP = SPAN/4; // 5 rings evenly across
+    const COLORS = [0x94a3b8, 0x2dd4bf, 0x38bdf8, 0x818cf8, 0xf43f5e];
+
+    // a soft connecting beam so the eye follows the flow
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(.05, .05, SPAN, 8),
+      new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent:true, opacity:.18 }));
+    beam.rotation.z = Math.PI/2; scene.add(beam);
+
+    const gates = [];
+    for (let i=0;i<5;i++){
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1.7, .11, 14, 44),
+        new THREE.MeshBasicMaterial({ color: COLORS[i], transparent:true, opacity:.85 }));
+      ring.position.x = X0 + i*GAP; ring.rotation.y = Math.PI/2;
+      scene.add(ring); gates.push(ring);
+    }
+
+    // request particles: flow left->right; ~15% get "blocked" and fade at a gate
+    const N = 120, pos = new Float32Array(N*3), spd = new Float32Array(N), col = new Float32Array(N*3), blockAt = new Float32Array(N);
+    const OK = new THREE.Color(0x2dd4bf), BLOCK = new THREE.Color(0xf43f5e);
+    function seed(i){
+      pos[i*3] = X0 - 1 - Math.random()*4;
+      pos[i*3+1] = (Math.random()-.5)*2.4;
+      pos[i*3+2] = (Math.random()-.5)*2.4;
+      spd[i] = .05 + Math.random()*.06;
+      const blocked = Math.random() < .15;
+      blockAt[i] = blocked ? X0 + (1+Math.floor(Math.random()*4))*GAP : 999; // stop at some gate
+      (blocked?BLOCK:OK).toArray(col, i*3);
+    }
+    for (let i=0;i<N;i++){ seed(i); pos[i*3] = X0 - 1 + Math.random()*SPAN; } // pre-fill
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.BufferAttribute(pos,3));
+    geo.setAttribute("color", new THREE.BufferAttribute(col,3));
+    const mat = new THREE.PointsMaterial({ size:.22, vertexColors:true, transparent:true, opacity:.95 });
+    scene.add(new THREE.Points(geo, mat));
+
+    function applyTheme(){ mat.opacity = light() ? .8 : .95; beam.material.opacity = light() ? .12 : .18; }
+    applyTheme();
+    new MutationObserver(applyTheme).observe(document.documentElement, { attributes:true, attributeFilter:["data-theme"] });
+
+    let t=0;
+    (function loop(){ requestAnimationFrame(loop); t+=.01;
+      for (let i=0;i<N;i++){
+        pos[i*3] += spd[i];
+        if (pos[i*3] >= blockAt[i]){ // hit its block gate -> bounce back a touch then respawn
+          pos[i*3] = blockAt[i]; pos[i*3+1] += (Math.random()-.5)*.15;
+          if (Math.random() < .04) seed(i);
+        }
+        if (pos[i*3] > X0 + SPAN + 1) seed(i);
+      }
+      geo.attributes.position.needsUpdate = true;
+      gates.forEach((g,i)=>{ g.rotation.z = t*(0.6+i*.12); const sc = 1 + Math.sin(t*2+i)*.04; g.scale.set(sc,sc,sc); });
+      renderer.render(scene, cam);
+    })();
+    addEventListener("resize", ()=>{ renderer.setSize(el.clientWidth, el.clientHeight); cam.aspect = el.clientWidth/el.clientHeight; cam.updateProjectionMatrix(); });
+  }
+</script></script>
+<a class="rt-sig" href="https://github.com/RishavTiwari25/tollgate" target="_blank" rel="noopener" aria-label="Rishav Tiwari on GitHub">
+  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+  <span>Rishav Tiwari</span>
+</a>
+<style>
+.rt-sig{position:fixed;right:14px;bottom:14px;z-index:9999;display:inline-flex;align-items:center;gap:7px;padding:7px 12px;border-radius:999px;font:600 12px/1 'Space Grotesk',system-ui,sans-serif;letter-spacing:.02em;text-decoration:none;color:#0b1120;background:#34d399;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:transform .15s ease}
+.rt-sig:hover{transform:translateY(-2px)}
+@media print{.rt-sig{display:none}}
+</style>
+</body>
+</html>
