@@ -1,0 +1,15 @@
+.claude/settings.local.json
+.firecrawl/
+node_modules/
+site/.vercel/
+.env
+.tenants.json
+.orgs.json
+.memory.jsonl
+
+# macOS
+.DS_Store
+
+# Go build output
+/tollgate
+coverage.out
