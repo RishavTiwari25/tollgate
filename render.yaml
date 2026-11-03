@@ -1,0 +1,46 @@
+# Render Blueprint — deploys the Tollgate gateway as a real, always-on
+# process. That matters: it holds in-memory token buckets, WebSocket and SSE
+# connections, and monthly meters, none of which survive on a platform that
+# freezes the process between requests.
+#
+# Free tier notes, stated honestly because they change how the demo behaves:
+#   - the instance sleeps after ~15 min idle; the first request after that
+#     takes ~30-50s to wake
+#   - the disk is ephemeral, so .tenants.json / .orgs.json / .memory.jsonl are
+#     lost on every deploy and the gateway re-seeds its one production site
+services:
+  - type: web
+    name: limitplane
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true # stable sessions across restarts
+      - key: DATA_DIR
+        value: /tmp # scratch image runs unprivileged; /tmp is writable
+      # ---- paste at deploy time; never committed ----
+      - key: GROQ_API_KEY
+        sync: false # absent -> deterministic fallbacks, nothing breaks
+      - key: DASH_ADMIN_PASSWORD
+        sync: false
+      - key: DASH_VIEWER_PASSWORD
+        sync: false
+      # the "Run live test" button: a fine-grained GitHub token with Actions:
+      # write on this repo only, and the key the workflow posts its log with
+      - key: LIVE_TEST_GITHUB_TOKEN
+        sync: false
+      - key: LIVE_TEST_INGEST_KEY
+        sync: false
+      - key: ALERT_WEBHOOK_URL
+        sync: false
+      # ---- Stripe: absent -> honest demo mode + /v1/billing/simulate ----
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_PRO
+        sync: false
+      - key: STRIPE_PRICE_ENTERPRISE
+        sync: false
