@@ -1,0 +1,39 @@
+# Traefik: ForwardAuth middleware, the third dialect.
+#
+# Traefik uses the X-Forwarded-* family rather than X-Original-*. Same handler,
+# same decision, third set of header names — which is exactly why the ext_authz
+# endpoint reads all three conventions instead of assuming one proxy.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: tollgate
+  namespace: tollgate
+spec:
+  forwardAuth:
+    address: http://tollgate.tollgate.svc.cluster.local/v1/authz
+    authResponseHeaders:
+      - X-RateLimit-Limit
+      - X-RateLimit-Remaining
+      - X-Tollgate-Tenant
+      - X-Tollgate-Tier
+      - X-Tollgate-Lane
+    authRequestHeaders:
+      - X-API-Key
+      - Authorization
+      - User-Agent
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: my-api
+  namespace: tollgate
+spec:
+  entryPoints: [web]
+  routes:
+    - match: Host(`api.example.com`)
+      kind: Rule
+      middlewares:
+        - name: tollgate
+      services:
+        - name: my-api
+          port: 8080
